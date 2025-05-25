@@ -1,6 +1,6 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
 // Load environment variables
@@ -12,71 +12,37 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.options('*', cors());
 
-// MongoDB Atlas Connection with options
-const MONGODB_URI = 'mongodb+srv://hotel24x7:Hc8UfM8PCABMLFmq@hotel24x7.xpc0qgd.mongodb.net/hotel24x7?retryWrites=true&w=majority';
+// MongoDB Connection
+const mongoUri = 'mongodb+srv://hotel24x7:Hc8UfM8PCABMLFmq@hotel24x7.xpc0qgd.mongodb.net/hotel24x7?retryWrites=true&w=majority';
 
-// Configure mongoose options
-mongoose.set('strictQuery', false);
+mongoose.connect(mongoUri, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true 
+})
+.then(() => console.log('MongoDB connected'))
+.catch(err => console.error('MongoDB connection error:', err));
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000, // Increase timeout
-      socketTimeoutMS: 45000,
-      family: 4 // Force IPv4
-    });
-
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    return true;
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    return false;
-  }
-};
-
-// Initial connection attempt
-let isConnected = false;
-connectDB().then(connected => {
-  isConnected = connected;
+// Customer Schema
+const customerSchema = new mongoose.Schema({
+  No_of_customer: Number,
+  Customer_Id: Number,
+  Name: String,
+  Aadhar_no: { type: String, required: true, unique: true },
+  Pan_no: String,
+  Add_person: Number,
+  Phone_no: String
 });
 
-// Connection event handlers
-mongoose.connection.on('connected', () => {
-  console.log('Mongoose connected to MongoDB');
-  isConnected = true;
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('Mongoose connection error:', err);
-  isConnected = false;
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('Mongoose disconnected from MongoDB');
-  isConnected = false;
-  // Attempt to reconnect
-  setTimeout(() => {
-    connectDB().then(connected => {
-      isConnected = connected;
-    });
-  }, 5000);
-});
+const Customer = mongoose.model('Customer', customerSchema);
 
 // Root route
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Welcome to Hotel24x7 API',
     status: 'Server is running',
-    database: isConnected ? 'Connected' : 'Disconnected',
-    connectionState: mongoose.connection.readyState,
-    connectionDetails: {
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
-      port: mongoose.connection.port
-    }
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
 });
 
@@ -85,13 +51,7 @@ app.get('/api', (req, res) => {
   res.json({ 
     message: 'Welcome to Hotel24x7 API',
     status: 'Server is running',
-    database: isConnected ? 'Connected' : 'Disconnected',
-    connectionState: mongoose.connection.readyState,
-    connectionDetails: {
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
-      port: mongoose.connection.port
-    }
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
 });
 
@@ -100,15 +60,47 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Server is running',
-    database: isConnected ? 'Connected' : 'Disconnected',
-    connectionState: mongoose.connection.readyState,
-    connectionDetails: {
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
-      port: mongoose.connection.port
-    },
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
     timestamp: new Date().toISOString()
   });
+});
+
+// Customer Routes
+app.post('/api/save-customer', async (req, res) => {
+  try {
+    const customer = new Customer(req.body);
+    await customer.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/customers', async (req, res) => {
+  try {
+    const customers = await Customer.find();
+    res.json(customers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/update-customer/:id', async (req, res) => {
+  try {
+    await Customer.findByIdAndUpdate(req.params.id, req.body);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/delete-customer/:id', async (req, res) => {
+  try {
+    await Customer.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Error handling middleware
