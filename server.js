@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.options('*', cors());
 
-const mongoUri = 'mongodb://localhost:27017/hotel24x7_animated'; // Change if using Atlas
+const mongoUri = 'mongodb+srv://hotel24x7:Hc8UfM8PCABMLFmq@hotel24x7.xpc0qgd.mongodb.net/'; // Change if using Atlas
 
 mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
